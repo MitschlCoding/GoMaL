@@ -2,7 +2,7 @@
 
 ## What is GoMaL?
 
-Gomal is a small machine learning library for freed-forward neural networks. The network is trained using gradient decent.
+Gomal is a small machine learning library for feed-forward neural networks. The network is trained using gradient decent.
 
 ## Installation
 

@@ -153,69 +153,126 @@ func randomMatrix(rows int, cols int, max float64, min float64) (c [][]float64) 
 	return result
 }
 
-func initParams(inputSize int, hiddenSize int, outputSize int) (W1 [][]float64, b1 [][]float64, W2 [][]float64, b2 [][]float64) {
-	W1 = randomMatrix(hiddenSize, inputSize, 0.5, -0.5)
-	b1 = randomMatrix(hiddenSize, 1, 0.5, -0.5)
-	W2 = randomMatrix(outputSize, hiddenSize, 0.5, -0.5)
-	b2 = randomMatrix(outputSize, 1, 0.5, -0.5)
-	return W1, b1, W2, b2
+func initParams(inputSize int, hiddenSizes []int, outputSize int) (weights [][][]float64, biases [][][]float64) {
+	weights = make([][][]float64, 0)
+	biases = make([][][]float64, 0)
+
+	// weight/bias for input to first hidden layer
+	weights = append(weights, randomMatrix(hiddenSizes[0], inputSize, 0.5, -0.5))
+	biases = append(biases, randomMatrix(hiddenSizes[0], 1, 0.5, -0.5))
+
+	// weight/bias for hidden layers
+	for i := 0; i < len(hiddenSizes)-1; i++ {
+		weights = append(weights, randomMatrix(hiddenSizes[i+1], hiddenSizes[i], 0.5, -0.5))
+		biases = append(biases, randomMatrix(hiddenSizes[i+1], 1, 0.5, -0.5))
+	}
+
+	// weight/bias for last hidden layer to output
+	weights = append(weights, randomMatrix(outputSize, hiddenSizes[len(hiddenSizes)-1], 0.5, -0.5))
+	biases = append(biases, randomMatrix(outputSize, 1, 0.5, -0.5))
+
+	return weights, biases
 }
 
 // tested
-func ForwardProp(W1 [][]float64, b1 [][]float64, W2 [][]float64, b2 [][]float64, X [][]float64) (Z1 [][]float64, A1 [][]float64, Z2 [][]float64, A2 [][]float64) {
-	Z1 = matrixAddVector(matrixMultiplication(W1, X), b1)
-	A1 = sigmoidMatrix(Z1)
-	Z2 = matrixAddVector(matrixMultiplication(W2, A1), b2)
-	A2 = Z2
-	return Z1, A1, Z2, A2
+func ForwardProp(weight1 [][]float64, bias1 [][]float64, weight2 [][]float64, bias2 [][]float64, input [][]float64) (sum1 [][]float64, output1 [][]float64, sum2 [][]float64, output2 [][]float64) {
+	sum1 = matrixAddVector(matrixMultiplication(weight1, input), bias1)
+	output1 = sigmoidMatrix(sum1)
+	sum2 = matrixAddVector(matrixMultiplication(weight2, output1), bias2)
+	output2 = sum2
+
+	return sum1, output1, sum2, output2
 }
 
-func backwardProp(Z1 [][]float64, A1 [][]float64, Z2 [][]float64, A2 [][]float64, W1 [][]float64, W2 [][]float64, X [][]float64, Y [][]float64) (dW1 [][]float64, db1 [][]float64, dW2 [][]float64, db2 [][]float64) {
-	m := float64(len(X[0]))
-	dZ2 := matrixScalarMultiplication(matrixSubstraction(A2, Y), 2.0)
-	dW2 = matrixScalarMultiplication(matrixMultiplication(dZ2, matrixTranspose(A1)), 1.0/m)
-	db2 = matrixScalarMultiplication(matrixSum(dZ2), 1.0/m)
-	dZ1 := matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(W2), dZ2), sigmoidDerivativeMatrix(Z1)), 2.0)
-	dW1 = matrixScalarMultiplication(matrixMultiplication(dZ1, matrixTranspose(X)), 1.0/m)
-	db1 = matrixScalarMultiplication(matrixSum(dZ1), 1.0/m)
-	return dW1, db1, dW2, db2
+func ForwardPropMultiLayer(weights [][][]float64, biases [][][]float64, input [][]float64) (sums [][][]float64, outputs [][][]float64) {
+	sums = make([][][]float64, 0)
+	outputs = make([][][]float64, 0)
+
+	sums = append(sums, matrixAddVector(matrixMultiplication(weights[0], input), biases[0]))
+	outputs = append(outputs, sigmoidMatrix(sums[0]))
+
+	for i := 1; i < len(weights); i++ {
+		sums = append(sums, matrixAddVector(matrixMultiplication(weights[i], outputs[i-1]), biases[i]))
+		outputs = append(outputs, sums[i])
+	}
+
+	return sums, outputs
+}
+
+func backwardProp(sum1 [][]float64, output1 [][]float64, sum2 [][]float64, output2 [][]float64, weight1 [][]float64, weight2 [][]float64, input [][]float64, expected [][]float64) (dWeight1 [][]float64, dBias1 [][]float64, dWeight2 [][]float64, dBias2 [][]float64) {
+	m := float64(len(input[0]))
+	dZ2 := matrixScalarMultiplication(matrixSubstraction(output2, expected), 2.0)
+	dWeight2 = matrixScalarMultiplication(matrixMultiplication(dZ2, matrixTranspose(output1)), 1.0/m)
+	dBias2 = matrixScalarMultiplication(matrixSum(dZ2), 1.0/m)
+	dZ1 := matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weight2), dZ2), sigmoidDerivativeMatrix(sum1)), 2.0)
+	dWeight1 = matrixScalarMultiplication(matrixMultiplication(dZ1, matrixTranspose(input)), 1.0/m)
+	dBias1 = matrixScalarMultiplication(matrixSum(dZ1), 1.0/m)
+	return dWeight1, dBias1, dWeight2, dBias2
+}
+
+func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [][][]float64, input [][]float64, expected [][]float64) (dWeights [][][]float64, dBias [][][]float64) {
+	m := float64(len(input[0]))
+	dZ := matrixScalarMultiplication(matrixSubstraction(outputs[len(outputs)-1], expected), 2.0)
+	dWeights = append(dWeights, matrixScalarMultiplication(matrixMultiplication(dZ, matrixTranspose(outputs[len(outputs)-2])), 1.0/m))
+	dBias = append(dBias, matrixScalarMultiplication(matrixSum(dZ), 1.0/m))
+	for i := len(outputs) - 2; i > 0; i-- {
+		dZ = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[i]), dZ), sigmoidDerivativeMatrix(sums[i-1])), 2.0)
+		dWeights = append(dWeights, matrixScalarMultiplication(matrixMultiplication(dZ, matrixTranspose(outputs[i-1])), 1.0/m))
+		dBias = append(dBias, matrixScalarMultiplication(matrixSum(dZ), 1.0/m))
+	}
+	dZ = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[0]), dZ), sigmoidDerivativeMatrix(sums[0])), 2.0)
+	dWeights = append(dWeights, matrixScalarMultiplication(matrixMultiplication(dZ, matrixTranspose(input)), 1.0/m))
+	dBias = append(dBias, matrixScalarMultiplication(matrixSum(dZ), 1.0/m))
+	return dWeights, dBias
 }
 
 // tested
-func updateParams(W1 [][]float64, b1 [][]float64, W2 [][]float64, b2 [][]float64, dW1 [][]float64, db1 [][]float64, dW2 [][]float64, db2 [][]float64, learning_rate float64) (W1_updated [][]float64, b1_updated [][]float64, W2_updated [][]float64, b2_updated [][]float64) {
-	W1_updated = matrixSubstraction(W1, matrixScalarMultiplication(dW1, learning_rate))
-	b1_updated = matrixSubstraction(b1, matrixScalarMultiplication(db1, learning_rate))
-	W2_updated = matrixSubstraction(W2, matrixScalarMultiplication(dW2, learning_rate))
-	b2_updated = matrixSubstraction(b2, matrixScalarMultiplication(db2, learning_rate))
-	return W1_updated, b1_updated, W2_updated, b2_updated
+func updateParams(weight1 [][]float64, bias1 [][]float64, weight2 [][]float64, bias2 [][]float64, dWeight1 [][]float64, dBias1 [][]float64, dWeight2 [][]float64, dBias2 [][]float64, learningRate float64) (weight1Updated [][]float64, bias1Updated [][]float64, weight2Updated [][]float64, bias2Updated [][]float64) {
+	weight1Updated = matrixSubstraction(weight1, matrixScalarMultiplication(dWeight1, learningRate))
+	bias1Updated = matrixSubstraction(bias1, matrixScalarMultiplication(dBias1, learningRate))
+	weight2Updated = matrixSubstraction(weight2, matrixScalarMultiplication(dWeight2, learningRate))
+	bias2Updated = matrixSubstraction(bias2, matrixScalarMultiplication(dBias2, learningRate))
+	return weight1Updated, bias1Updated, weight2Updated, bias2Updated
 }
 
-func getLoss(A2 [][]float64, Y [][]float64) float64 {
-	m := float64(len(A2[0]))
+func updateParamsMultiLayer(weights [][][]float64, biases [][][]float64, dWeights [][][]float64, dBias [][][]float64, learningRate float64) (weightsUpdated [][][]float64, biasesUpdated [][][]float64) {
+	weightsUpdated = make([][][]float64, 0)
+	biasesUpdated = make([][][]float64, 0)
+
+	for i := 0; i < len(weights); i++ {
+		weightsUpdated = append(weightsUpdated, matrixSubstraction(weights[i], matrixScalarMultiplication(dWeights[i], learningRate)))
+		biasesUpdated = append(biasesUpdated, matrixSubstraction(biases[i], matrixScalarMultiplication(dBias[i], learningRate)))
+	}
+
+	return weightsUpdated, biasesUpdated
+}
+
+func getLoss(output [][]float64, expected [][]float64) float64 {
+	m := float64(len(output[0]))
 	var sum float64
-	for i := 0; i < len(A2); i++ {
-		sum += math.Pow(A2[0][i]-Y[0][i], 2)
+	for i := 0; i < len(output); i++ {
+		sum += math.Pow(output[0][i]-expected[0][i], 2)
 	}
 	return sum / m
 }
 
-func GradiantDescent(X [][]float64, Y [][]float64, iterations int, learnRate float64, inputSize int, hiddenSize int, outputSize int) (W1 [][]float64, b1 [][]float64, W2 [][]float64, b2 [][]float64) {
-	W1, b1, W2, b2 = initParams(inputSize, hiddenSize, outputSize)
+func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, inputSize int, hiddenSizes []int, outputSize int) (weight1 [][]float64, bias1 [][]float64, weight2 [][]float64, bias2 [][]float64) {
+	weights, biases := initParams(inputSize, hiddenSizes, outputSize)
 
 	tenPercent := iterations / 10
 	for i := 0; i < iterations; i++ {
-		Z1, A1, Z2, A2 := ForwardProp(W1, b1, W2, b2, X)
-		dW1, db1, dW2, db2 := backwardProp(Z1, A1, Z2, A2, W1, W2, X, Y)
-		W1, b1, W2, b2 = updateParams(W1, b1, W2, b2, dW1, db1, dW2, db2, learnRate)
+		sums, outputs := ForwardPropMultiLayer(weights, biases, input)
+		dW1, db1, dW2, db2 := backwardProp(sums[0], outputs[0], sums[1], outputs[1], weights[0], weights[1], input, expected)
+		weights, biases = updateParamsMultiLayer(weights, biases, [][][]float64{dW1, dW2}, [][][]float64{db1, db2}, learnRate)
 		if i%tenPercent == 0 {
 			fmt.Print("Progress: ", i/tenPercent, "/", 10, " Loss: ")
-			fmt.Println(getLoss(A2, Y))
-			util.WriteValuesToFile(A2, "./data/Out"+fmt.Sprint(i/tenPercent)+".txt")
+			fmt.Println(getLoss(outputs[1], expected))
+			util.WriteValuesToFile(outputs[1], "./data/Out"+fmt.Sprint(i/tenPercent)+".txt")
 		}
 		if i == iterations-1 {
 			fmt.Print("Progress: ", 10, "/", 10, " Loss: ")
-			fmt.Println(getLoss(A2, Y))
+			fmt.Println(getLoss(outputs[1], expected))
 		}
 	}
-	return W1, b1, W2, b2
+	return weights[0], biases[0], weights[1], biases[1]
 }

@@ -10,11 +10,17 @@ Gomal is a small machine learning library for feed-forward neural networks, as p
 
 #### Required
 
-- either go installed https://go.dev/doc/install or Docker installed https://docs.docker.com/engine/install/
+One of the following:
+
+- go installed https://go.dev/doc/install
+- Docker installed https://docs.docker.com/engine/install/
 
 #### Optional
 
+##### Visualisation
+
 - python3 installed for visualisation https://www.python.org/downloads/
+- MatPlotLib ```bash pip install matplotlib``
 
 ## How to Run
 
@@ -35,6 +41,7 @@ When you are in the repository folder you can run:
 ```bash
 sudo docker build -t gomal .
 ```
+
 to build a Docker-Image named gomal. After that you can use
 
 ```bash
@@ -42,3 +49,7 @@ sudo docker run gomal
 ```
 
 to run the Image.
+
+### Visualisation
+
+Just run the Python script /util/helper.py in the repository folder. Be sure to install

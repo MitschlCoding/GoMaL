@@ -52,4 +52,4 @@ to run the Image.
 
 ### Visualisation
 
-Just run the Python script /util/helper.py in the repository folder. Be sure to install
+Just run the Python script /util/helper.py in the repository folder. Be sure to install the requirements for Visualisation first.

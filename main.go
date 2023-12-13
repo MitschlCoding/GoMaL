@@ -21,7 +21,7 @@ func main() {
 
 	util.WriteValuesToFile(Y, "./data/Ref.txt")
 
-	W1, b1, W2, b2 := ml.GradiantDescent(X, Y, 300000, 0.01, 1, []int{5}, 1)
+	W1, b1, W2, b2 := ml.GradiantDescent(X, Y, 600000, 0.003, 1, []int{7}, 1)
 
 	_, _, _, A2 := ml.ForwardProp(W1, b1, W2, b2, X)
 

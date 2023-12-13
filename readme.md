@@ -19,8 +19,8 @@ One of the following:
 
 ##### Visualisation
 
-- python3 installed for visualisation https://www.python.org/downloads/
-- MatPlotLib ```bash pip install matplotlib``
+- python3 installed https://www.python.org/downloads/
+- MatPlotLib installed https://matplotlib.org/stable/users/installing/index.html
 
 ## How to Run
 

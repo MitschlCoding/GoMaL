@@ -10,7 +10,7 @@ Gomal is a small machine learning library for feed-forward neural networks, as p
 
 #### Required
 
-- go installed https://go.dev/doc/install or Docker installed
+- either go installed https://go.dev/doc/install or Docker installed https://docs.docker.com/engine/install/
 
 #### Optional
 

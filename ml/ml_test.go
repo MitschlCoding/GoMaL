@@ -387,6 +387,85 @@ func TestUpdateParams(t *testing.T) {
 	}
 }
 
+func TestUpdateParamsMultiLayer(t *testing.T) {
+	var tests = []struct {
+		weights   [][][]float64
+		biases    [][][]float64
+		dWeights  [][][]float64
+		dBiases   [][][]float64
+		expectedW [][][]float64
+		expectedB [][][]float64
+	}{
+		{
+			[][][]float64{
+				{
+					{0.1}, {0.2}, {-0.1}, {-0.2}, {0.0},
+					{0.1}, {0.2}, {-0.1}, {-0.2}, {0.0},
+					{0.1}, {0.2}, {-0.1}, {-0.2}, {0.0},
+				},
+				{
+					{0.1, 0.2, -0.1, -0.2, 0.0},
+					{0.1, 0.2, -0.1, -0.2, 0.0},
+					{0.1, 0.2, -0.1, -0.2, 0.0},
+				},
+			},
+			[][][]float64{
+				{
+					{0.1}, {0.2}, {-0.1}, {-0.2}, {0.0},
+				},
+				{
+					{0.1},
+				},
+			},
+			[][][]float64{
+				{
+					{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0},
+					{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0},
+					{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0},
+				},
+				{
+					{0.004, 0.008, -0.004, -0.008, 0.0},
+					{0.004, 0.008, -0.004, -0.008, 0.0},
+					{0.004, 0.008, -0.004, -0.008, 0.0},
+				},
+			},
+			[][][]float64{
+				{
+					{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0},
+				},
+				{
+					{0.004},
+				},
+			},
+			[][][]float64{
+				{
+					{0.0988}, {0.1976}, {-0.0988}, {-0.1976}, {0.0},
+					{0.0988}, {0.1976}, {-0.0988}, {-0.1976}, {0.0},
+					{0.0988}, {0.1976}, {-0.0988}, {-0.1976}, {0.0},
+				},
+				{
+					{0.0988, 0.1976, -0.0988, -0.1976, 0.0},
+					{0.0988, 0.1976, -0.0988, -0.1976, 0.0},
+					{0.0988, 0.1976, -0.0988, -0.1976, 0.0},
+				},
+			},
+			[][][]float64{
+				{
+					{0.0988}, {0.1976}, {-0.0988}, {-0.1976}, {0.0},
+				},
+				{
+					{0.0988},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		if outputW, outputB := updateParamsMultiLayer(test.weights, test.biases, test.dWeights, test.dBiases, 0.3); !compareMatrix(outputW[0], test.expectedW[0]) || !compareMatrix(outputB[0], test.expectedB[0]) || !compareMatrix(outputW[1], test.expectedW[1]) || !compareMatrix(outputB[1], test.expectedB[1]) {
+			t.Errorf("Test failed: input: %f, expected: %f, output: %f", test.weights, test.expectedW, outputW)
+		}
+	}
+}
+
 func TestRandomMatrix(t *testing.T) {
 	var tests = []struct {
 		rows    int

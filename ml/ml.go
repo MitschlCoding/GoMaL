@@ -212,17 +212,40 @@ func backwardProp(sum1 [][]float64, output1 [][]float64, sum2 [][]float64, outpu
 
 func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [][][]float64, input [][]float64, expected [][]float64) (dWeights [][][]float64, dBias [][][]float64) {
 	m := float64(len(input[0]))
-	dZ := matrixScalarMultiplication(matrixSubstraction(outputs[len(outputs)-1], expected), 2.0)
-	dWeights = append(dWeights, matrixScalarMultiplication(matrixMultiplication(dZ, matrixTranspose(outputs[len(outputs)-2])), 1.0/m))
-	dBias = append(dBias, matrixScalarMultiplication(matrixSum(dZ), 1.0/m))
-	for i := len(outputs) - 2; i > 0; i-- {
-		dZ = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[i]), dZ), sigmoidDerivativeMatrix(sums[i-1])), 2.0)
-		dWeights = append(dWeights, matrixScalarMultiplication(matrixMultiplication(dZ, matrixTranspose(outputs[i-1])), 1.0/m))
-		dBias = append(dBias, matrixScalarMultiplication(matrixSum(dZ), 1.0/m))
+	dZ := make([][][]float64, len(outputs))
+	for i := 0; i < len(dZ); i++ {
+		dZ[i] = make([][]float64, len(outputs[i]))
+		for j := 0; j < len(dZ[i]); j++ {
+			dZ[i][j] = make([]float64, len(outputs[i][0]))
+		}
 	}
-	dZ = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[0]), dZ), sigmoidDerivativeMatrix(sums[0])), 2.0)
-	dWeights = append(dWeights, matrixScalarMultiplication(matrixMultiplication(dZ, matrixTranspose(input)), 1.0/m))
-	dBias = append(dBias, matrixScalarMultiplication(matrixSum(dZ), 1.0/m))
+	dWeights = make([][][]float64, len(weights))
+	for i := 0; i < len(dWeights); i++ {
+		dWeights[i] = make([][]float64, len(weights[i]))
+		for j := 0; j < len(dWeights[i]); j++ {
+			dWeights[i][j] = make([]float64, len(weights[i][0]))
+		}
+	}
+	dBias = make([][][]float64, len(outputs))
+	for i := 0; i < len(dBias); i++ {
+		dBias[i] = make([][]float64, len(outputs[i]))
+		for j := 0; j < len(dBias[i]); j++ {
+			dBias[i][j] = make([]float64, 1)
+		}
+	}
+	dZ[len(dZ)-1] = matrixScalarMultiplication(matrixSubstraction(outputs[len(outputs)-1], expected), 2.0)
+	dWeights[len(dWeights)-1] = matrixScalarMultiplication(matrixMultiplication(dZ[len(dZ)-1], matrixTranspose(outputs[len(outputs)-2])), 1.0/m)
+	dBias[len(dBias)-1] = matrixScalarMultiplication(matrixSum(dZ[len(dZ)-1]), 1.0/m)
+
+	for i := len(dZ) - 2; i > 0; i-- {
+		dZ[i] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[i+1]), dZ[i+1]), sigmoidDerivativeMatrix(sums[i])), 2.0)
+		dWeights[i] = matrixScalarMultiplication(matrixMultiplication(dZ[i], matrixTranspose(outputs[i-1])), 1.0/m)
+		dBias[i] = matrixScalarMultiplication(matrixSum(dZ[i]), 1.0/m)
+	}
+	dZ[0] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[1]), dZ[1]), sigmoidDerivativeMatrix(sums[0])), 2.0)
+	dWeights[0] = matrixScalarMultiplication(matrixMultiplication(dZ[0], matrixTranspose(input)), 1.0/m)
+	dBias[0] = matrixScalarMultiplication(matrixSum(dZ[0]), 1.0/m) 
+
 	return dWeights, dBias
 }
 
@@ -256,14 +279,16 @@ func getLoss(output [][]float64, expected [][]float64) float64 {
 	return sum / m
 }
 
-func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, inputSize int, hiddenSizes []int, outputSize int) (weight1 [][]float64, bias1 [][]float64, weight2 [][]float64, bias2 [][]float64) {
-	weights, biases := initParams(inputSize, hiddenSizes, outputSize)
+func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, inputSize int, hiddenSizes []int, outputSize int) (weights [][][]float64, biases [][][]float64) {
+	weights, biases = initParams(inputSize, hiddenSizes, outputSize)
 
 	tenPercent := iterations / 10
 	for i := 0; i < iterations; i++ {
 		sums, outputs := ForwardPropMultiLayer(weights, biases, input)
-		dW1, db1, dW2, db2 := backwardProp(sums[0], outputs[0], sums[1], outputs[1], weights[0], weights[1], input, expected)
-		weights, biases = updateParamsMultiLayer(weights, biases, [][][]float64{dW1, dW2}, [][][]float64{db1, db2}, learnRate)
+		//dW1, db1, dW2, db2 := backwardProp(sums[0], outputs[0], sums[1], outputs[1], weights[0], weights[1], input, expected)
+		//weights, biases = updateParamsMultiLayer(weights, biases, [][][]float64{dW1, dW2}, [][][]float64{db1, db2}, learnRate)
+		dWeights, dBias := backwardPropMultiLayer(sums, outputs, weights, input, expected)
+		weights, biases = updateParamsMultiLayer(weights, biases, dWeights, dBias, learnRate)
 		if i%tenPercent == 0 {
 			fmt.Print("Progress: ", i/tenPercent, "/", 10, " Loss: ")
 			fmt.Println(getLoss(outputs[1], expected))
@@ -274,5 +299,5 @@ func GradiantDescent(input [][]float64, expected [][]float64, iterations int, le
 			fmt.Println(getLoss(outputs[1], expected))
 		}
 	}
-	return weights[0], biases[0], weights[1], biases[1]
+	return weights, biases
 }

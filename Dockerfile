@@ -3,7 +3,7 @@
 FROM golang:1.21
 
 # Set destination for COPY
-WORKDIR /
+WORKDIR /app
 
 # Download Go modules
 COPY go.mod go.sum ./
@@ -14,7 +14,7 @@ RUN go mod download
 COPY . ./
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux go build -o /
+RUN CGO_ENABLED=0 GOOS=linux go build -o /gomal
 
 # Optional:
 # To bind to a TCP port, runtime parameters must be supplied to the docker command.
@@ -24,4 +24,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /
 EXPOSE 8080
 
 # Run
-CMD ["go run main.go"]
+CMD ["/gomal"]

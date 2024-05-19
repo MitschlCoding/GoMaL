@@ -225,6 +225,9 @@ func ForwardPropMultiLayer(weights [][][]float64, biases [][][]float64, activati
 		outputs = append(outputs, sigmoidMatrix(sums[0]))
 	} else if activationFunctions[0] == "linear" {
 		outputs = append(outputs, linearMatrix(sums[0]))
+	} else {
+		fmt.Println("Activation function not supported")
+		return nil, nil
 	}
 
 	for i := 1; i < len(weights); i++ {
@@ -233,6 +236,9 @@ func ForwardPropMultiLayer(weights [][][]float64, biases [][][]float64, activati
 			outputs = append(outputs, sigmoidMatrix(sums[i]))
 		} else if activationFunctions[i] == "linear" {
 			outputs = append(outputs, linearMatrix(sums[i]))
+		} else {
+			fmt.Println("Activation function not supported")
+			return nil, nil
 		}
 	}
 
@@ -263,35 +269,44 @@ func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [
 		}
 	}
 
-	derivative_output := [][]float64{}
+	var derivative_output [][]float64
 	if activationFunctions[len(activationFunctions)-1] == "sigmoid" {
 		derivative_output = sigmoidDerivativeMatrix(sums[len(sums)-1])
 	} else if activationFunctions[len(activationFunctions)-1] == "linear" {
 		derivative_output = linearDerivativeMatrix(sums[len(sums)-1])
+	} else {
+		fmt.Println("Activation function not supported")
+		return nil, nil
 	}
 	dZ[len(dZ)-1] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixSubstraction(outputs[len(outputs)-1], expected), derivative_output), 2.0)
 	dWeights[len(dWeights)-1] = matrixScalarMultiplication(matrixMultiplication(dZ[len(dZ)-1], matrixTranspose(outputs[len(outputs)-2])), 1.0/m)
 	dBias[len(dBias)-1] = matrixScalarMultiplication(matrixSum(dZ[len(dZ)-1]), 1.0/m)
 
 	for i := len(dZ) - 2; i > 0; i-- {
-		derivative := [][]float64{}
+		var derivative [][]float64
 		if activationFunctions[i] == "sigmoid" {
 			derivative = sigmoidDerivativeMatrix(sums[i])
 		} else if activationFunctions[i] == "linear" {
 			derivative = linearDerivativeMatrix(sums[i])
+		} else {
+			fmt.Println("Activation function not supported")
+			return nil, nil
 		}
 		dZ[i] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[i+1]), dZ[i+1]), derivative), 2.0)
 		dWeights[i] = matrixScalarMultiplication(matrixMultiplication(dZ[i], matrixTranspose(outputs[i-1])), 1.0/m)
 		dBias[i] = matrixScalarMultiplication(matrixSum(dZ[i]), 1.0/m)
 	}
 
-	derivative := [][]float64{}
+	var derivative_input [][]float64
 	if activationFunctions[0] == "sigmoid" {
-		derivative = sigmoidDerivativeMatrix(sums[0])
+		derivative_input = sigmoidDerivativeMatrix(sums[0])
 	} else if activationFunctions[0] == "linear" {
-		derivative = linearDerivativeMatrix(sums[0])
+		derivative_input = linearDerivativeMatrix(sums[0])
+	} else {
+		fmt.Println("Activation function not supported")
+		return nil, nil
 	}
-	dZ[0] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[1]), dZ[1]), derivative), 2.0)
+	dZ[0] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[1]), dZ[1]), derivative_input), 2.0)
 	dWeights[0] = matrixScalarMultiplication(matrixMultiplication(dZ[0], matrixTranspose(input)), 1.0/m)
 	dBias[0] = matrixScalarMultiplication(matrixSum(dZ[0]), 1.0/m) 
 

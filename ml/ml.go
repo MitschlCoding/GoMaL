@@ -43,6 +43,38 @@ func sigmoidDerivativeMatrix(m [][]float64) (c [][]float64) {
 	return result
 }
 
+func linear(x float64) float64 {
+	return x
+}
+
+func linearMatrix(m [][]float64) (c [][]float64) {
+	var result [][]float64
+	for i := 0; i < len(m); i++ {
+		var row []float64
+		for j := 0; j < len(m[0]); j++ {
+			row = append(row, linear(m[i][j]))
+		}
+		result = append(result, row)
+	}
+	return result
+}
+
+func linearDerivative(x float64) float64 {
+	return 1
+}
+
+func linearDerivativeMatrix(m [][]float64) (c [][]float64) {
+	var result [][]float64
+	for i := 0; i < len(m); i++ {
+		var row []float64
+		for j := 0; j < len(m[0]); j++ {
+			row = append(row, linearDerivative(m[i][j]))
+		}
+		result = append(result, row)
+	}
+	return result
+}
+
 // tested
 func matrixMultiplication(a [][]float64, b [][]float64) (c [][]float64) {
 	var result [][]float64
@@ -184,33 +216,30 @@ func ForwardProp(weight1 [][]float64, bias1 [][]float64, weight2 [][]float64, bi
 	return sum1, output1, sum2, output2
 }
 
-func ForwardPropMultiLayer(weights [][][]float64, biases [][][]float64, input [][]float64) (sums [][][]float64, outputs [][][]float64) {
+func ForwardPropMultiLayer(weights [][][]float64, biases [][][]float64, activationFunctions []string, input [][]float64) (sums [][][]float64, outputs [][][]float64) {
 	sums = make([][][]float64, 0)
 	outputs = make([][][]float64, 0)
 
 	sums = append(sums, matrixAddVector(matrixMultiplication(weights[0], input), biases[0]))
-	outputs = append(outputs, sigmoidMatrix(sums[0]))
+	if activationFunctions[0] == "sigmoid" {
+		outputs = append(outputs, sigmoidMatrix(sums[0]))
+	} else if activationFunctions[0] == "linear" {
+		outputs = append(outputs, linearMatrix(sums[0]))
+	}
 
 	for i := 1; i < len(weights); i++ {
 		sums = append(sums, matrixAddVector(matrixMultiplication(weights[i], outputs[i-1]), biases[i]))
-		outputs = append(outputs, sums[i])
+		if activationFunctions[i] == "sigmoid" {
+			outputs = append(outputs, sigmoidMatrix(sums[i]))
+		} else if activationFunctions[i] == "linear" {
+			outputs = append(outputs, linearMatrix(sums[i]))
+		}
 	}
 
 	return sums, outputs
 }
 
-func backwardProp(sum1 [][]float64, output1 [][]float64, sum2 [][]float64, output2 [][]float64, weight1 [][]float64, weight2 [][]float64, input [][]float64, expected [][]float64) (dWeight1 [][]float64, dBias1 [][]float64, dWeight2 [][]float64, dBias2 [][]float64) {
-	m := float64(len(input[0]))
-	dZ2 := matrixScalarMultiplication(matrixSubstraction(output2, expected), 2.0)
-	dWeight2 = matrixScalarMultiplication(matrixMultiplication(dZ2, matrixTranspose(output1)), 1.0/m)
-	dBias2 = matrixScalarMultiplication(matrixSum(dZ2), 1.0/m)
-	dZ1 := matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weight2), dZ2), sigmoidDerivativeMatrix(sum1)), 2.0)
-	dWeight1 = matrixScalarMultiplication(matrixMultiplication(dZ1, matrixTranspose(input)), 1.0/m)
-	dBias1 = matrixScalarMultiplication(matrixSum(dZ1), 1.0/m)
-	return dWeight1, dBias1, dWeight2, dBias2
-}
-
-func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [][][]float64, input [][]float64, expected [][]float64) (dWeights [][][]float64, dBias [][][]float64) {
+func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [][][]float64, activationFunctions []string, input [][]float64, expected [][]float64) (dWeights [][][]float64, dBias [][][]float64) {
 	m := float64(len(input[0]))
 	dZ := make([][][]float64, len(outputs))
 	for i := 0; i < len(dZ); i++ {
@@ -233,16 +262,36 @@ func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [
 			dBias[i][j] = make([]float64, 1)
 		}
 	}
-	dZ[len(dZ)-1] = matrixScalarMultiplication(matrixSubstraction(outputs[len(outputs)-1], expected), 2.0)
+
+	derivative_output := [][]float64{}
+	if activationFunctions[len(activationFunctions)-1] == "sigmoid" {
+		derivative_output = sigmoidDerivativeMatrix(sums[len(sums)-1])
+	} else if activationFunctions[len(activationFunctions)-1] == "linear" {
+		derivative_output = linearDerivativeMatrix(sums[len(sums)-1])
+	}
+	dZ[len(dZ)-1] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixSubstraction(outputs[len(outputs)-1], expected), derivative_output), 2.0)
 	dWeights[len(dWeights)-1] = matrixScalarMultiplication(matrixMultiplication(dZ[len(dZ)-1], matrixTranspose(outputs[len(outputs)-2])), 1.0/m)
 	dBias[len(dBias)-1] = matrixScalarMultiplication(matrixSum(dZ[len(dZ)-1]), 1.0/m)
 
 	for i := len(dZ) - 2; i > 0; i-- {
-		dZ[i] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[i+1]), dZ[i+1]), sigmoidDerivativeMatrix(sums[i])), 2.0)
+		derivative := [][]float64{}
+		if activationFunctions[i] == "sigmoid" {
+			derivative = sigmoidDerivativeMatrix(sums[i])
+		} else if activationFunctions[i] == "linear" {
+			derivative = linearDerivativeMatrix(sums[i])
+		}
+		dZ[i] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[i+1]), dZ[i+1]), derivative), 2.0)
 		dWeights[i] = matrixScalarMultiplication(matrixMultiplication(dZ[i], matrixTranspose(outputs[i-1])), 1.0/m)
 		dBias[i] = matrixScalarMultiplication(matrixSum(dZ[i]), 1.0/m)
 	}
-	dZ[0] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[1]), dZ[1]), sigmoidDerivativeMatrix(sums[0])), 2.0)
+
+	derivative := [][]float64{}
+	if activationFunctions[0] == "sigmoid" {
+		derivative = sigmoidDerivativeMatrix(sums[0])
+	} else if activationFunctions[0] == "linear" {
+		derivative = linearDerivativeMatrix(sums[0])
+	}
+	dZ[0] = matrixScalarMultiplication(matrixMultiplicationByElement(matrixMultiplication(matrixTranspose(weights[1]), dZ[1]), derivative), 2.0)
 	dWeights[0] = matrixScalarMultiplication(matrixMultiplication(dZ[0], matrixTranspose(input)), 1.0/m)
 	dBias[0] = matrixScalarMultiplication(matrixSum(dZ[0]), 1.0/m) 
 
@@ -279,24 +328,22 @@ func getLoss(output [][]float64, expected [][]float64) float64 {
 	return sum / m
 }
 
-func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, inputSize int, hiddenSizes []int, outputSize int) (weights [][][]float64, biases [][][]float64) {
+func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, inputSize int, hiddenSizes []int, outputSize int, activationFunctions []string) (weights [][][]float64, biases [][][]float64) {
 	weights, biases = initParams(inputSize, hiddenSizes, outputSize)
 
 	tenPercent := iterations / 10
 	for i := 0; i < iterations; i++ {
-		sums, outputs := ForwardPropMultiLayer(weights, biases, input)
-		//dW1, db1, dW2, db2 := backwardProp(sums[0], outputs[0], sums[1], outputs[1], weights[0], weights[1], input, expected)
-		//weights, biases = updateParamsMultiLayer(weights, biases, [][][]float64{dW1, dW2}, [][][]float64{db1, db2}, learnRate)
-		dWeights, dBias := backwardPropMultiLayer(sums, outputs, weights, input, expected)
+		sums, outputs := ForwardPropMultiLayer(weights, biases, activationFunctions, input)
+		dWeights, dBias := backwardPropMultiLayer(sums, outputs, weights, activationFunctions, input, expected)
 		weights, biases = updateParamsMultiLayer(weights, biases, dWeights, dBias, learnRate)
 		if i%tenPercent == 0 {
 			fmt.Print("Progress: ", i/tenPercent, "/", 10, " Loss: ")
-			fmt.Println(getLoss(outputs[1], expected))
-			util.WriteValuesToFile(outputs[1], "./data/Out"+fmt.Sprint(i/tenPercent)+".txt")
+			fmt.Println(getLoss(outputs[len(outputs)-1], expected))
+			util.WriteValuesToFile(outputs[len(outputs)-1], "./data/Out"+fmt.Sprint(i/tenPercent)+".txt")
 		}
 		if i == iterations-1 {
 			fmt.Print("Progress: ", 10, "/", 10, " Loss: ")
-			fmt.Println(getLoss(outputs[1], expected))
+			fmt.Println(getLoss(outputs[len(outputs)-1], expected))
 		}
 	}
 	return weights, biases

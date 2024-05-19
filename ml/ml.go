@@ -1,7 +1,6 @@
 package ml
 
 import (
-	"Mitschl/Gomal/util"
 	"fmt"
 	"math"
 	"math/rand"
@@ -314,14 +313,16 @@ func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [
 }
 
 // tested
-func updateParamsMultiLayer(weights [][][]float64, biases [][][]float64, dWeights [][][]float64, lastDWeights [][][]float64, dBias [][][]float64, lastDBias[][][]float64, learningRate float64, momentumFactor float64) (weightsUpdated [][][]float64, biasesUpdated [][][]float64) {
+func updateParamsMultiLayer(weights [][][]float64, biases [][][]float64, dWeights [][][]float64, lastDWeights [][][]float64, dBias [][][]float64, lastDBias [][][]float64, learningRate float64, momentumFactor float64, learningRateDecay float64, iteration int) (weightsUpdated [][][]float64, biasesUpdated [][][]float64) {
 	weightsUpdated = make([][][]float64, 0)
 	biasesUpdated = make([][][]float64, 0)
 
+	temp_learnRate := learningRate * math.Exp(-learningRateDecay*float64(iteration))
+
 	for i := 0; i < len(weights); i++ {
-		dW := matrixAddVector(matrixScalarMultiplication(dWeights[i], learningRate), matrixScalarMultiplication(lastDWeights[i], momentumFactor))
+		dW := matrixAddVector(matrixScalarMultiplication(dWeights[i], temp_learnRate), matrixScalarMultiplication(lastDWeights[i], momentumFactor))
 		weightsUpdated = append(weightsUpdated, matrixSubstraction(weights[i], dW))
-		dB := matrixAddVector(matrixScalarMultiplication(dBias[i], learningRate), matrixScalarMultiplication(lastDBias[i], momentumFactor))
+		dB := matrixAddVector(matrixScalarMultiplication(dBias[i], temp_learnRate), matrixScalarMultiplication(lastDBias[i], momentumFactor))
 		biasesUpdated = append(biasesUpdated, matrixSubstraction(biases[i], dB))
 	}
 
@@ -337,10 +338,11 @@ func getLoss(output [][]float64, expected [][]float64) float64 {
 	return sum / m
 }
 
-func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, momentumFactor float64, inputSize int, hiddenSizes []int, outputSize int, activationFunctions []string) (weights [][][]float64, biases [][][]float64) {
+func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, momentumFactor float64, learingRateDecay float64, inputSize int, hiddenSizes []int, outputSize int, activationFunctions []string) (weights [][][]float64, biases [][][]float64, losses []float64) {
 	weights, biases = initParams(inputSize, hiddenSizes, outputSize)
 
-	tenPercent := iterations / 10
+	fivePercent := iterations / 20
+	onePercent := iterations / 100
 	lastDWeights := make([][][]float64, len(weights))
 	for i := 0; i < len(lastDWeights); i++ {
 		lastDWeights[i] = make([][]float64, len(weights[i]))
@@ -359,18 +361,16 @@ func GradiantDescent(input [][]float64, expected [][]float64, iterations int, le
 	for i := 0; i < iterations; i++ {
 		sums, outputs := ForwardPropMultiLayer(weights, biases, activationFunctions, input)
 		dWeights, dBias := backwardPropMultiLayer(sums, outputs, weights, activationFunctions, input, expected)
-		weights, biases = updateParamsMultiLayer(weights, biases, dWeights, lastDWeights, dBias, lastDBias, learnRate, momentumFactor)
+		weights, biases = updateParamsMultiLayer(weights, biases, dWeights, lastDWeights, dBias, lastDBias, learnRate, momentumFactor, learingRateDecay, i)
 		lastDWeights = dWeights
 		lastDBias = dBias
-		if i%tenPercent == 0 {
-			fmt.Print("Progress: ", i/tenPercent, "/", 10, " Loss: ")
-			fmt.Println(getLoss(outputs[len(outputs)-1], expected))
-			util.WriteValuesToFile(outputs[len(outputs)-1], "./data/Out"+fmt.Sprint(i/tenPercent)+".txt")
-		}
-		if i == iterations-1 {
-			fmt.Print("Progress: ", 10, "/", 10, " Loss: ")
-			fmt.Println(getLoss(outputs[len(outputs)-1], expected))
+		if i%onePercent == 0 {
+			loss := getLoss(outputs[len(outputs)-1], expected)
+			losses = append(losses, loss)
+			if i%fivePercent == 0 {
+				fmt.Println("Progress: ", i/fivePercent, "/", 20, " Loss: ", loss)
+			}
 		}
 	}
-	return weights, biases
+	return weights, biases, losses
 }

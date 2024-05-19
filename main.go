@@ -3,10 +3,12 @@ package main
 import (
 	"Mitschl/Gomal/ml"
 	"math"
+	"time"
 
 	//"Mitschl/Gomal/util"
 	"fmt"
 	//"math"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,12 +23,29 @@ type LearnRequestBody struct {
 
 	Iterations   int     `json:"iterations"`
 	LearningRate float64 `json:"learningRate"`
-	momentumFactor float64 `json:"momentumFactor"`
+	MomentumFactor float64 `json:"momentumFactor"`
+	LearningRateDecay float64 `json:"learningRateDecay"`
+}
+
+type TrainResponseBody struct {
+	Weights [][][]float64 `json:"weights"`
+	Biases  [][][]float64   `json:"biases"`
+	Losses []float64       `json:"losses"`
+	Predictions [][]float64 `json:"predictions"`
 }
 
 func main() {
 
 	r := gin.Default()
+	config := cors.DefaultConfig()
+    config.AllowAllOrigins = true
+    config.AllowMethods = []string{"POST", "GET", "PUT", "OPTIONS"}
+    config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "User-Agent", "Cache-Control", "Pragma"}
+    config.ExposeHeaders = []string{"Content-Length"}
+    config.AllowCredentials = true
+    config.MaxAge = 12 * time.Hour
+
+    r.Use(cors.New(config))
 
     r.LoadHTMLGlob("templ/*")
 
@@ -104,10 +123,10 @@ func main() {
 		}
 		
 
-		W, B := ml.GradiantDescent(requestBody.X, requestBody.Y, requestBody.Iterations, requestBody.LearningRate, requestBody.momentumFactor, requestBody.Input, requestBody.Hidden, requestBody.Output, requestBody.ActivationFunctions)
-		_, outputs := ml.ForwardPropMultiLayer(W, B, requestBody.ActivationFunctions, requestBody.X)
+		weights, biases, losses := ml.GradiantDescent(requestBody.X, requestBody.Y, requestBody.Iterations, requestBody.LearningRate, requestBody.MomentumFactor, requestBody.LearningRateDecay, requestBody.Input, requestBody.Hidden, requestBody.Output, requestBody.ActivationFunctions)
+		_, outputs := ml.ForwardPropMultiLayer(weights, biases, requestBody.ActivationFunctions, requestBody.X)
 
-		c.JSON(200, outputs[len(outputs)-1])
+		c.JSON(200, TrainResponseBody{Weights: weights, Biases: biases, Losses: losses, Predictions: outputs[len(outputs)-1]})
 	})
 
 	r.POST("/train/xor", func(c *gin.Context) {
@@ -122,10 +141,10 @@ func main() {
 
 		activationFunctions := []string{"sigmoid", "linear"}
 		hiddenLayers := []int{3}
-		W, B := ml.GradiantDescent(X, Y, 10000, 0.1, 0.1, 2, hiddenLayers, 1, activationFunctions)
-		_, outputs := ml.ForwardPropMultiLayer(W, B, activationFunctions, X)
+		weights, biases, losses := ml.GradiantDescent(X, Y, 5000, 0.5, 0.001, 0.0005, 2, hiddenLayers, 1, activationFunctions)
+		_, outputs := ml.ForwardPropMultiLayer(weights, biases, activationFunctions, X)
 		
-		c.JSON(200, outputs[len(outputs)-1])
+		c.JSON(200, TrainResponseBody{Weights: weights, Biases: biases, Losses: losses, Predictions: outputs[len(outputs)-1]})
 	})
 
 	r.POST("/train/sin", func(c *gin.Context) {
@@ -144,12 +163,10 @@ func main() {
 		hiddenLayers := []int{10, 10}
 		activationFunctions := []string{"sigmoid", "sigmoid", "linear"}
 
-		W, B := ml.GradiantDescent(X, Y, 100000, 0.03, 0, 1, hiddenLayers, 1, activationFunctions)
-		_, outputs := ml.ForwardPropMultiLayer(W, B, activationFunctions, X)
+		weights, biases, losses := ml.GradiantDescent(X, Y, 30000, 0.05, 0.02, 0.0005, 1, hiddenLayers, 1, activationFunctions)
+		_, outputs := ml.ForwardPropMultiLayer(weights, biases, activationFunctions, X)
 
-		fmt.Println(len(outputs[len(outputs)-1][0]))
-
-		c.JSON(200, outputs[len(outputs)-1])
+		c.JSON(200, TrainResponseBody{Weights: weights, Biases: biases, Losses: losses, Predictions: outputs[len(outputs)-1]})
 	})
 
     r.GET("/list", func(c *gin.Context) {
@@ -157,47 +174,4 @@ func main() {
     })
 
 	r.Run() 
-
-	/*
-			X := make([][]float64, 1)
-			X[0] = make([]float64, 70)
-			for i := 0; i < 70; i++ {
-				X[0][i] = float64(i) / 10.0
-			}
-
-		    fmt.Println(X)
-			Y := make([][]float64, 1)
-			Y[0] = make([]float64, 70)
-			for i := 0; i < 70; i++ {
-				Y[0][i] = math.Sin(float64(i) / 10.0)
-			}
-
-			util.WriteValuesToFile(Y, "./data/Ref.txt")
-
-			W1, b1, W2, b2 := ml.GradiantDescent(X, Y, 600000, 0.003, 1, []int{7}, 1)
-
-			_, _, _, A2 := ml.ForwardProp(W1, b1, W2, b2, X)
-
-			util.WriteValuesToFile(A2, "./data/OutFin.txt")
-
-			/*
-
-				// test data for XOR
-				X := [][]float64{
-					{0, 0, 1, 1},
-					{0, 1, 0, 1},
-				}
-
-				Y := [][]float64{
-					{0, 1, 1, 0},
-				}
-
-				util.WriteValuesToFile(Y, "./data/Ref.txt")
-
-				W1, b1, W2, b2 := ml.GradiantDescent(X, Y, 50000, 0.01, 2, []int{5}, 1)
-
-				_, _, _, A2 := ml.ForwardProp(W1, b1, W2, b2, X)
-
-				util.WriteValuesToFile(A2, "./data/OutFin.txt")
-	*/
 }

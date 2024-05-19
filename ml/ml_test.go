@@ -446,7 +446,7 @@ func TestUpdateParamsMultiLayer(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if outputW, outputB := updateParamsMultiLayer(test.weights, test.biases, test.dWeights, test.ddWeights, test.dBiases, test.ddBiases, 0.3, 0); !compareMatrix(outputW[0], test.expectedW[0]) || !compareMatrix(outputB[0], test.expectedB[0]) || !compareMatrix(outputW[1], test.expectedW[1]) || !compareMatrix(outputB[1], test.expectedB[1]) {
+		if outputW, outputB := updateParamsMultiLayer(test.weights, test.biases, test.dWeights, test.ddWeights, test.dBiases, test.ddBiases, 0.3, 0, 0, 0); !compareMatrix(outputW[0], test.expectedW[0]) || !compareMatrix(outputB[0], test.expectedB[0]) || !compareMatrix(outputW[1], test.expectedW[1]) || !compareMatrix(outputB[1], test.expectedB[1]) {
 			t.Errorf("Test failed: input: %f, expected: %f, output: %f", test.weights, test.expectedW, outputW)
 		}
 	}

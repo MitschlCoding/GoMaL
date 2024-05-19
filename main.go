@@ -21,6 +21,7 @@ type LearnRequestBody struct {
 
 	Iterations   int     `json:"iterations"`
 	LearningRate float64 `json:"learningRate"`
+	momentumFactor float64 `json:"momentumFactor"`
 }
 
 func main() {
@@ -103,7 +104,7 @@ func main() {
 		}
 		
 
-		W, B := ml.GradiantDescent(requestBody.X, requestBody.Y, requestBody.Iterations, requestBody.LearningRate, requestBody.Input, requestBody.Hidden, requestBody.Output, requestBody.ActivationFunctions)
+		W, B := ml.GradiantDescent(requestBody.X, requestBody.Y, requestBody.Iterations, requestBody.LearningRate, requestBody.momentumFactor, requestBody.Input, requestBody.Hidden, requestBody.Output, requestBody.ActivationFunctions)
 		_, outputs := ml.ForwardPropMultiLayer(W, B, requestBody.ActivationFunctions, requestBody.X)
 
 		c.JSON(200, outputs[len(outputs)-1])
@@ -121,7 +122,7 @@ func main() {
 
 		activationFunctions := []string{"sigmoid", "linear"}
 		hiddenLayers := []int{3}
-		W, B := ml.GradiantDescent(X, Y, 100000, 0.1, 2, hiddenLayers, 1, activationFunctions)
+		W, B := ml.GradiantDescent(X, Y, 10000, 0.1, 0.1, 2, hiddenLayers, 1, activationFunctions)
 		_, outputs := ml.ForwardPropMultiLayer(W, B, activationFunctions, X)
 		
 		c.JSON(200, outputs[len(outputs)-1])
@@ -143,7 +144,7 @@ func main() {
 		hiddenLayers := []int{10, 10}
 		activationFunctions := []string{"sigmoid", "sigmoid", "linear"}
 
-		W, B := ml.GradiantDescent(X, Y, 100000, 0.03, 1, hiddenLayers, 1, activationFunctions)
+		W, B := ml.GradiantDescent(X, Y, 100000, 0.03, 0, 1, hiddenLayers, 1, activationFunctions)
 		_, outputs := ml.ForwardPropMultiLayer(W, B, activationFunctions, X)
 
 		fmt.Println(len(outputs[len(outputs)-1][0]))

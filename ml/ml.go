@@ -314,21 +314,15 @@ func backwardPropMultiLayer(sums [][][]float64, outputs [][][]float64, weights [
 }
 
 // tested
-func updateParams(weight1 [][]float64, bias1 [][]float64, weight2 [][]float64, bias2 [][]float64, dWeight1 [][]float64, dBias1 [][]float64, dWeight2 [][]float64, dBias2 [][]float64, learningRate float64) (weight1Updated [][]float64, bias1Updated [][]float64, weight2Updated [][]float64, bias2Updated [][]float64) {
-	weight1Updated = matrixSubstraction(weight1, matrixScalarMultiplication(dWeight1, learningRate))
-	bias1Updated = matrixSubstraction(bias1, matrixScalarMultiplication(dBias1, learningRate))
-	weight2Updated = matrixSubstraction(weight2, matrixScalarMultiplication(dWeight2, learningRate))
-	bias2Updated = matrixSubstraction(bias2, matrixScalarMultiplication(dBias2, learningRate))
-	return weight1Updated, bias1Updated, weight2Updated, bias2Updated
-}
-
-func updateParamsMultiLayer(weights [][][]float64, biases [][][]float64, dWeights [][][]float64, dBias [][][]float64, learningRate float64) (weightsUpdated [][][]float64, biasesUpdated [][][]float64) {
+func updateParamsMultiLayer(weights [][][]float64, biases [][][]float64, dWeights [][][]float64, lastDWeights [][][]float64, dBias [][][]float64, lastDBias[][][]float64, learningRate float64, momentumFactor float64) (weightsUpdated [][][]float64, biasesUpdated [][][]float64) {
 	weightsUpdated = make([][][]float64, 0)
 	biasesUpdated = make([][][]float64, 0)
 
 	for i := 0; i < len(weights); i++ {
-		weightsUpdated = append(weightsUpdated, matrixSubstraction(weights[i], matrixScalarMultiplication(dWeights[i], learningRate)))
-		biasesUpdated = append(biasesUpdated, matrixSubstraction(biases[i], matrixScalarMultiplication(dBias[i], learningRate)))
+		dW := matrixAddVector(matrixScalarMultiplication(dWeights[i], learningRate), matrixScalarMultiplication(lastDWeights[i], momentumFactor))
+		weightsUpdated = append(weightsUpdated, matrixSubstraction(weights[i], dW))
+		dB := matrixAddVector(matrixScalarMultiplication(dBias[i], learningRate), matrixScalarMultiplication(lastDBias[i], momentumFactor))
+		biasesUpdated = append(biasesUpdated, matrixSubstraction(biases[i], dB))
 	}
 
 	return weightsUpdated, biasesUpdated
@@ -343,14 +337,31 @@ func getLoss(output [][]float64, expected [][]float64) float64 {
 	return sum / m
 }
 
-func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, inputSize int, hiddenSizes []int, outputSize int, activationFunctions []string) (weights [][][]float64, biases [][][]float64) {
+func GradiantDescent(input [][]float64, expected [][]float64, iterations int, learnRate float64, momentumFactor float64, inputSize int, hiddenSizes []int, outputSize int, activationFunctions []string) (weights [][][]float64, biases [][][]float64) {
 	weights, biases = initParams(inputSize, hiddenSizes, outputSize)
 
 	tenPercent := iterations / 10
+	lastDWeights := make([][][]float64, len(weights))
+	for i := 0; i < len(lastDWeights); i++ {
+		lastDWeights[i] = make([][]float64, len(weights[i]))
+		for j := 0; j < len(lastDWeights[i]); j++ {
+			lastDWeights[i][j] = make([]float64, len(weights[i][0]))
+		}
+	}
+	lastDBias := make([][][]float64, len(biases))
+	for i := 0; i < len(lastDBias); i++ {
+		lastDBias[i] = make([][]float64, len(biases[i]))
+		for j := 0; j < len(lastDBias[i]); j++ {
+			lastDBias[i][j] = make([]float64, 1)
+		}
+	}
+
 	for i := 0; i < iterations; i++ {
 		sums, outputs := ForwardPropMultiLayer(weights, biases, activationFunctions, input)
 		dWeights, dBias := backwardPropMultiLayer(sums, outputs, weights, activationFunctions, input, expected)
-		weights, biases = updateParamsMultiLayer(weights, biases, dWeights, dBias, learnRate)
+		weights, biases = updateParamsMultiLayer(weights, biases, dWeights, lastDWeights, dBias, lastDBias, learnRate, momentumFactor)
+		lastDWeights = dWeights
+		lastDBias = dBias
 		if i%tenPercent == 0 {
 			fmt.Print("Progress: ", i/tenPercent, "/", 10, " Loss: ")
 			fmt.Println(getLoss(outputs[len(outputs)-1], expected))

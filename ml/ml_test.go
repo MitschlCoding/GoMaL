@@ -350,49 +350,15 @@ func TestForwardProp(t *testing.T) {
 	}
 }
 
-func TestUpdateParams(t *testing.T) {
-	var tests = []struct {
-		W1         [][]float64
-		W2         [][]float64
-		b1         [][]float64
-		b2         [][]float64
-		dW1        [][]float64
-		dW2        [][]float64
-		db1        [][]float64
-		db2        [][]float64
-		expectedW1 [][]float64
-		expectedW2 [][]float64
-		expectedb1 [][]float64
-		expectedb2 [][]float64
-	}{
-		{
-			[][]float64{{0.1}, {0.2}, {-0.1}, {-0.2}, {0.0}},
-			[][]float64{{0.1, 0.2, -0.1, -0.2, 0.0}},
-			[][]float64{{0.1}, {0.2}, {-0.1}, {-0.2}, {0.0}},
-			[][]float64{{0.1}},
-			[][]float64{{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0}},
-			[][]float64{{0.004, 0.008, -0.004, -0.008, 0.0}},
-			[][]float64{{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0}},
-			[][]float64{{0.004}},
-			[][]float64{{0.0988}, {0.1976}, {-0.0988}, {-0.1976}, {0.0}},
-			[][]float64{{0.0988, 0.1976, -0.0988, -0.1976, 0.0}},
-			[][]float64{{0.0988}, {0.1976}, {-0.0988}, {-0.1976}, {0.0}},
-			[][]float64{{0.0988}},
-		},
-	}
-	for _, test := range tests {
-		if outputW1, outputb1, outputW2, outputb2 := updateParams(test.W1, test.b1, test.W2, test.b2, test.dW1, test.db1, test.dW2, test.db2, 0.3); !compareMatrix(outputW1, test.expectedW1) || !compareMatrix(outputb1, test.expectedb1) || !compareMatrix(outputW2, test.expectedW2) || !compareMatrix(outputb2, test.expectedb2) {
-			t.Errorf("Test failed: input: %f, expected: %f, output: %f", test.W1, test.expectedW1, outputW1)
-		}
-	}
-}
 
 func TestUpdateParamsMultiLayer(t *testing.T) {
 	var tests = []struct {
 		weights   [][][]float64
 		biases    [][][]float64
 		dWeights  [][][]float64
+		ddWeights [][][]float64
 		dBiases   [][][]float64
+		ddBiases  [][][]float64
 		expectedW [][][]float64
 		expectedB [][][]float64
 	}{
@@ -431,10 +397,30 @@ func TestUpdateParamsMultiLayer(t *testing.T) {
 			},
 			[][][]float64{
 				{
+					{0.0}, {0.0}, {0.0}, {0.0}, {0.0},
+					{0.0}, {0.0}, {0.0}, {0.0}, {0.0},
+					{0.0}, {0.0}, {0.0}, {0.0}, {0.0},
+				},
+				{
+					{0.0, 0.0, 0.0, 0.0, 0.0},
+					{0.0, 0.0, 0.0, 0.0, 0.0},
+					{0.0, 0.0, 0.0, 0.0, 0.0},
+				},
+			},
+			[][][]float64{
+				{
 					{0.004}, {0.008}, {-0.004}, {-0.008}, {0.0},
 				},
 				{
 					{0.004},
+				},
+			},
+			[][][]float64{
+				{
+					{0.0}, {0.0}, {0.0}, {0.0}, {0.0},
+				},
+				{
+					{0.0},
 				},
 			},
 			[][][]float64{
@@ -460,7 +446,7 @@ func TestUpdateParamsMultiLayer(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if outputW, outputB := updateParamsMultiLayer(test.weights, test.biases, test.dWeights, test.dBiases, 0.3); !compareMatrix(outputW[0], test.expectedW[0]) || !compareMatrix(outputB[0], test.expectedB[0]) || !compareMatrix(outputW[1], test.expectedW[1]) || !compareMatrix(outputB[1], test.expectedB[1]) {
+		if outputW, outputB := updateParamsMultiLayer(test.weights, test.biases, test.dWeights, test.ddWeights, test.dBiases, test.ddBiases, 0.3, 0); !compareMatrix(outputW[0], test.expectedW[0]) || !compareMatrix(outputB[0], test.expectedB[0]) || !compareMatrix(outputW[1], test.expectedW[1]) || !compareMatrix(outputB[1], test.expectedB[1]) {
 			t.Errorf("Test failed: input: %f, expected: %f, output: %f", test.weights, test.expectedW, outputW)
 		}
 	}
